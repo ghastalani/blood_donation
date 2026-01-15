@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useCities } from '@/hooks/useCities';
-import { Loader2, Check, X, Clock, Droplets, Calendar } from 'lucide-react';
+import { Loader2, Check, X, Clock, Droplets, Calendar, ArrowLeft } from 'lucide-react';
 
 interface DonationRequest {
   id: string;
@@ -41,19 +41,19 @@ const DonorDashboard = () => {
     if (!profile) return;
 
     try {
-      const { data, error } = await supabase
-        .from('donation_requests')
-        .select(`
-          *,
-          requester:profiles!donation_requests_requester_id_fkey (
-            id, name, phone, email, city_id
-          )
-        `)
-        .eq('donor_id', profile.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setRequests(data || []);
+      const data = await api.requests.get(profile.id, 'donor');
+      // The API returns 'other_name', 'other_phone', etc. for the requester
+      const formattedData = data.map((r: any) => ({
+        ...r,
+        requester: {
+          id: r.requester_id,
+          name: r.other_name,
+          phone: r.other_phone,
+          email: r.other_email,
+          city_id: r.city_id || r.requester_city_id // Adjust based on API response
+        }
+      }));
+      setRequests(formattedData || []);
     } catch (err) {
       console.error('Error fetching requests:', err);
     } finally {
@@ -68,88 +68,58 @@ const DonorDashboard = () => {
       navigate('/');
     } else if (profile) {
       fetchRequests();
-
-      // Subscribe to real-time updates
-      const channel = supabase
-        .channel('donor-requests')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'donation_requests',
-            filter: `donor_id=eq.${profile.id}`,
-          },
-          () => {
-            fetchRequests();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      // Manual refresh interval as a simple replacement for real-time
+      const interval = setInterval(fetchRequests, 30000);
+      return () => clearInterval(interval);
     }
   }, [profile, authLoading]);
 
   const handleRequest = async (requestId: string, action: 'accepted' | 'rejected') => {
     setProcessingId(requestId);
     try {
-      // Update request status
-      const { error: updateError } = await supabase
-        .from('donation_requests')
-        .update({ status: action })
-        .eq('id', requestId);
-
-      if (updateError) throw updateError;
-
-      // If accepted, set donor unavailable and cooldown
       if (action === 'accepted' && profile) {
-        const cooldownEnd = new Date();
-        cooldownEnd.setDate(cooldownEnd.getDate() + 90);
+        const response = await api.requests.acceptRequest(requestId, profile.id);
+        if (response.status === 'success') {
+          // Immediately update local state to reflect acceptance and rejection of others
+          setRequests(prev => prev.map(req => {
+            if (req.id === requestId) return { ...req, status: 'accepted' };
+            if (req.status === 'pending') return { ...req, status: 'rejected' };
+            return req;
+          }));
 
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            is_available: false,
-            cooldown_end_date: cooldownEnd.toISOString(),
-          })
-          .eq('id', profile.id);
+          await refreshProfile();
 
-        if (profileError) throw profileError;
-        await refreshProfile();
-      }
+          toast({
+            title: dir === 'rtl' ? 'تم قبول الطلب بنجاح' : 'Request Accepted Successfully',
+            description: dir === 'rtl'
+              ? 'لقد وافقت على التبرع بالدم. سيتم تزويد طالب الدم بمعلومات الاتصال الخاصة بك.'
+              : 'You have agreed to donate blood. The requester will be provided with your contact info.',
+            className: "bg-success text-white border-none shadow-lg",
+          });
+        }
+      } else {
+        await api.requests.updateStatus(requestId, action);
 
-      // Create notification for requester
-      const request = requests.find((r) => r.id === requestId);
-      if (request) {
-        await supabase.from('notifications').insert({
-          user_id: request.requester_id,
-          title_en: action === 'accepted' ? 'Request Accepted!' : 'Request Rejected',
-          title_ar: action === 'accepted' ? 'تم قبول الطلب!' : 'تم رفض الطلب',
-          message_en: action === 'accepted'
-            ? `Your blood request has been accepted by ${profile?.name}. Contact: ${profile?.phone}`
-            : 'Your blood request has been rejected.',
-          message_ar: action === 'accepted'
-            ? `تم قبول طلب الدم الخاص بك من قبل ${profile?.name}. للتواصل: ${profile?.phone}`
-            : 'تم رفض طلب الدم الخاص بك.',
-          type: action === 'accepted' ? 'success' : 'info',
-          related_request_id: requestId,
+        // Update local state
+        setRequests(prev => prev.map(req =>
+          req.id === requestId ? { ...req, status: action } : req
+        ));
+
+        toast({
+          title: dir === 'rtl' ? 'تم تحديث الحالة' : 'Status Updated',
+          description: action === 'accepted' ? t('requestAccepted') : t('requestRejected'),
+          className: action === 'rejected' ? "bg-destructive text-white border-none" : "bg-success text-white border-none",
         });
       }
 
-      toast({
-        title: dir === 'rtl' ? 'نجاح' : 'Success',
-        description: action === 'accepted' ? t('requestAccepted') : t('requestRejected'),
-      });
-
+      // Re-fetch everything to be sure
       fetchRequests();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error handling request:', err);
       toast({
         variant: 'destructive',
         title: dir === 'rtl' ? 'خطأ' : 'Error',
-        description: t('genericError'),
+        description: err.message || t('genericError'),
       });
     } finally {
       setProcessingId(null);
@@ -157,9 +127,51 @@ const DonorDashboard = () => {
   };
 
   const getCityName = (cityId: string) => {
+    if (!cities || !cityId) return '';
     const city = cities.find((c) => c.id === cityId);
     return city ? (language === 'ar' ? city.name_ar : city.name_en) : '';
   };
+
+  const [timeLeft, setTimeLeft] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  } | null>(null);
+
+  const calculateTimeLeft = () => {
+    if (!profile?.cooldown_end_date) return null;
+    const end = new Date(profile.cooldown_end_date);
+    const now = new Date();
+    const diff = end.getTime() - now.getTime();
+
+    if (diff <= 0) {
+      if (!profile.is_available) {
+        refreshProfile(); // Trigger profile refresh when cooldown ends
+      }
+      return null;
+    }
+
+    return {
+      days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+      minutes: Math.floor((diff / 1000 / 60) % 60),
+      seconds: Math.floor((diff / 1000) % 60),
+    };
+  };
+
+  useEffect(() => {
+    if (profile?.cooldown_end_date && !profile.is_available) {
+      const timer = setInterval(() => {
+        const remaining = calculateTimeLeft();
+        setTimeLeft(remaining);
+        if (!remaining) clearInterval(timer);
+      }, 1000);
+      return () => clearInterval(timer);
+    } else {
+      setTimeLeft(null);
+    }
+  }, [profile?.cooldown_end_date, profile?.is_available]);
 
   const getDaysRemaining = () => {
     if (!profile?.cooldown_end_date) return 0;
@@ -182,6 +194,20 @@ const DonorDashboard = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
+        {/* Back Button */}
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 rounded-full px-4"
+          >
+            <ArrowLeft className={`h-4 w-4 transition-transform group-hover:${dir === 'rtl' ? 'translate-x-1' : '-translate-x-1'}`} />
+            <span className="font-medium">
+              {dir === 'rtl' ? 'العودة' : 'Back'}
+            </span>
+          </Button>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -199,7 +225,7 @@ const DonorDashboard = () => {
             ) : (
               <Badge variant="outline" className="bg-warning/10 text-warning border-warning">
                 <Clock className="h-4 w-4 mr-1" />
-                {t('unavailable')} - {getDaysRemaining()} {t('daysRemaining')}
+                {t('unavailable')} - {timeLeft ? `${timeLeft.days}d ${timeLeft.hours}h` : `${getDaysRemaining()} ${t('daysRemaining')}`}
               </Badge>
             )}
           </div>
@@ -207,17 +233,54 @@ const DonorDashboard = () => {
 
         {/* Cooldown Card */}
         {!profile?.is_available && (
-          <Card className="mb-8 border-warning bg-warning/5">
-            <CardContent className="flex items-center gap-4 p-6">
-              <Calendar className="h-12 w-12 text-warning" />
-              <div>
-                <h3 className="font-semibold text-foreground">
-                  {dir === 'rtl' ? 'فترة الانتظار' : 'Cooldown Period'}
+          <Card className="mb-8 border-warning bg-warning/5 overflow-hidden relative shadow-lg">
+            <div className="absolute top-0 left-0 w-2 h-full bg-warning" />
+            <CardContent className="flex flex-col md:flex-row items-center gap-6 p-6">
+              <div className="bg-warning/10 p-4 rounded-full">
+                <Calendar className="h-8 w-8 text-warning" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-foreground mb-1">
+                  {dir === 'rtl' ? 'فترة الانتظار (90 يوماً)' : 'Cooldown Period (90 Days)'}
                 </h3>
                 <p className="text-muted-foreground">
                   {dir === 'rtl'
-                    ? `ستصبح متاحاً للتبرع بعد ${getDaysRemaining()} يوماً`
-                    : `You'll be available to donate again in ${getDaysRemaining()} days`}
+                    ? `لقد تبرعت مؤخراً. ستتمكن من التبرع مرة أخرى بعد:`
+                    : `You have donated recently. You will be eligible to donate again in:`}
+                </p>
+
+                {/* Countdown Timer */}
+                <div className="flex gap-4 mt-4">
+                  {[
+                    { label: dir === 'rtl' ? 'يوم' : 'Days', value: timeLeft?.days ?? 0 },
+                    { label: dir === 'rtl' ? 'ساعة' : 'Hours', value: timeLeft?.hours ?? 0 },
+                    { label: dir === 'rtl' ? 'دقيقة' : 'Mins', value: timeLeft?.minutes ?? 0 },
+                    { label: dir === 'rtl' ? 'ثانية' : 'Secs', value: timeLeft?.seconds ?? 0 },
+                  ].map((unit, i) => (
+                    <div key={i} className="flex flex-col items-center">
+                      <div className="bg-background border border-warning/20 rounded-lg w-16 h-16 flex items-center justify-center text-2xl font-bold text-warning shadow-sm">
+                        {String(unit.value).padStart(2, '0')}
+                      </div>
+                      <span className="text-[10px] uppercase tracking-tighter mt-1 font-bold text-muted-foreground">
+                        {unit.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-warning h-2 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${Math.min(100, (getDaysRemaining() / 90) * 100)}%` }}
+                  />
+                </div>
+              </div>
+              <div className="bg-warning/10 px-6 py-4 rounded-2xl text-center min-w-[120px]">
+                <span className="text-5xl font-black text-warning leading-none">
+                  {timeLeft?.days ?? getDaysRemaining()}
+                </span>
+                <p className="text-xs uppercase tracking-widest text-warning/80 font-bold mt-1">
+                  {t('daysRemaining')}
                 </p>
               </div>
             </CardContent>

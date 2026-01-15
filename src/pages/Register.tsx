@@ -18,10 +18,10 @@ const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const Register = () => {
   const { t, dir, language } = useLanguage();
   const { signUp } = useAuth();
-  const { cities } = useCities();
+  const { cities, loading: citiesLoading, error: citiesError } = useCities();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [role, setRole] = useState<'donor' | 'requester' | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -51,19 +51,37 @@ const Register = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) newErrors.name = t('requiredField');
-    if (!formData.email.trim() || !z.string().email().safeParse(formData.email).success) {
+    if (!formData.email.trim()) {
+      newErrors.email = t('requiredField');
+    } else if (!z.string().email().safeParse(formData.email).success) {
       newErrors.email = t('invalidEmail');
     }
-    if (!formData.phone.trim()) newErrors.phone = t('requiredField');
-    if (formData.password.length < 4) newErrors.password = t('invalidPassword');
-    if (formData.password !== formData.confirmPassword) {
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = t('requiredField');
+    } else if (!/^\d{8,}$/.test(formData.phone.replace(/[\s\-\+]/g, ''))) {
+      newErrors.phone = t('invalidPhone');
+    }
+
+    if (!formData.password) {
+      newErrors.password = t('requiredField');
+    } else if (formData.password.length < 4) {
+      newErrors.password = t('invalidPassword');
+    }
+
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = t('requiredField');
+    } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = t('passwordMismatch');
     }
+
     if (!formData.city_id) newErrors.city_id = t('requiredField');
 
     if (role === 'donor') {
       if (!formData.blood_type) newErrors.blood_type = t('requiredField');
-      if (!formData.nni || formData.nni.length !== 10 || !/^\d+$/.test(formData.nni)) {
+      if (!formData.nni) {
+        newErrors.nni = t('requiredField');
+      } else if (formData.nni.length !== 10 || !/^\d+$/.test(formData.nni)) {
         newErrors.nni = t('invalidNNI');
       }
     }
@@ -74,7 +92,7 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!role) {
       toast({
         variant: 'destructive',
@@ -100,7 +118,7 @@ const Register = () => {
       };
 
       const { error } = await signUp(formData.email, formData.password, metadata);
-      
+
       if (error) {
         let errorMessage = t('genericError');
         if (error.message.includes('already registered')) {
@@ -116,9 +134,18 @@ const Register = () => {
           title: dir === 'rtl' ? 'نجاح' : 'Success',
           description: t('registrationSuccess'),
         });
-        navigate('/');
+
+        // Redirect based on role
+        if (role === 'donor') {
+          navigate('/donor-dashboard');
+        } else if (role === 'requester') {
+          navigate('/requester-dashboard');
+        } else {
+          navigate('/');
+        }
       }
     } catch (err) {
+      console.error('Registration Catch Error:', err);
       toast({
         variant: 'destructive',
         title: dir === 'rtl' ? 'خطأ' : 'Error',
@@ -148,11 +175,10 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => setRole('donor')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    role === 'donor'
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
+                  className={`p-4 rounded-xl border-2 transition-all ${role === 'donor'
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-primary/50'
+                    }`}
                 >
                   <Droplets className={`h-8 w-8 mx-auto mb-2 ${role === 'donor' ? 'text-primary' : 'text-muted-foreground'}`} />
                   <div className="font-medium">{t('donor')}</div>
@@ -162,11 +188,10 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => setRole('requester')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    role === 'requester'
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
+                  className={`p-4 rounded-xl border-2 transition-all ${role === 'requester'
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-primary/50'
+                    }`}
                 >
                   <User className={`h-8 w-8 mx-auto mb-2 ${role === 'requester' ? 'text-primary' : 'text-muted-foreground'}`} />
                   <div className="font-medium">{t('requester')}</div>
@@ -186,7 +211,7 @@ const Register = () => {
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.name ? 'border-destructive' : ''}`}
+                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.name ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                       />
                     </div>
                     {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
@@ -203,7 +228,7 @@ const Register = () => {
                         type="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.email ? 'border-destructive' : ''}`}
+                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.email ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                       />
                     </div>
                     {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
@@ -219,7 +244,7 @@ const Register = () => {
                         name="phone"
                         value={formData.phone}
                         onChange={handleChange}
-                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.phone ? 'border-destructive' : ''}`}
+                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.phone ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                       />
                     </div>
                     {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
@@ -229,7 +254,7 @@ const Register = () => {
                   <div className="space-y-2">
                     <Label>{t('city')}</Label>
                     <Select value={formData.city_id} onValueChange={(v) => handleSelectChange('city_id', v)}>
-                      <SelectTrigger className={errors.city_id ? 'border-destructive' : ''}>
+                      <SelectTrigger className={errors.city_id ? 'border-destructive ring-2 ring-destructive/20' : ''}>
                         <MapPin className="h-4 w-4 text-muted-foreground mr-2" />
                         <SelectValue placeholder={dir === 'rtl' ? 'اختر مدينتك' : 'Select your city'} />
                       </SelectTrigger>
@@ -250,7 +275,7 @@ const Register = () => {
                       <div className="space-y-2">
                         <Label>{t('bloodType')}</Label>
                         <Select value={formData.blood_type} onValueChange={(v) => handleSelectChange('blood_type', v)}>
-                          <SelectTrigger className={errors.blood_type ? 'border-destructive' : ''}>
+                          <SelectTrigger className={errors.blood_type ? 'border-destructive ring-2 ring-destructive/20' : ''}>
                             <Droplets className="h-4 w-4 text-muted-foreground mr-2" />
                             <SelectValue placeholder={dir === 'rtl' ? 'اختر فصيلة دمك' : 'Select blood type'} />
                           </SelectTrigger>
@@ -274,7 +299,7 @@ const Register = () => {
                             value={formData.nni}
                             onChange={handleChange}
                             placeholder="1234567890"
-                            className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.nni ? 'border-destructive' : ''}`}
+                            className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.nni ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                           />
                         </div>
                         {errors.nni && <p className="text-sm text-destructive">{errors.nni}</p>}
@@ -293,7 +318,7 @@ const Register = () => {
                         type="password"
                         value={formData.password}
                         onChange={handleChange}
-                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.password ? 'border-destructive' : ''}`}
+                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.password ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                       />
                     </div>
                     {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
@@ -310,7 +335,7 @@ const Register = () => {
                         type="password"
                         value={formData.confirmPassword}
                         onChange={handleChange}
-                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.confirmPassword ? 'border-destructive' : ''}`}
+                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.confirmPassword ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                       />
                     </div>
                     {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
@@ -324,7 +349,7 @@ const Register = () => {
                 {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 {t('createAccount')}
               </Button>
-              
+
               <p className="text-sm text-muted-foreground text-center">
                 {t('alreadyHaveAccount')}{' '}
                 <Link to="/login" className="text-primary font-medium hover:underline">

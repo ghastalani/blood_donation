@@ -1,0 +1,13 @@
+{
+    "profiles": {
+        "Table": "profiles",
+        "Create Table": "CREATE TABLE `profiles` (\n  `id` varchar(36) NOT NULL,\n  `user_id` varchar(36) NOT NULL,\n  `name` varchar(255) NOT NULL,\n  `phone` varchar(20) NOT NULL,\n  `email` varchar(191) NOT NULL,\n  `city_id` varchar(255) DEFAULT NULL,\n  `role` enum('donor','requester','admin') NOT NULL DEFAULT 'donor',\n  `blood_type` enum('A+','A-','B+','B-','AB+','AB-','O+','O-') DEFAULT NULL,\n  `nni` varchar(10) DEFAULT NULL,\n  `is_available` tinyint(1) DEFAULT '1',\n  `cooldown_end_date` timestamp NULL DEFAULT NULL,\n  `is_blocked` tinyint(1) DEFAULT '0',\n  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,\n  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `user_id` (`user_id`),\n  KEY `city_id` (`city_id`),\n  CONSTRAINT `profiles_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+    },
+    "tables": [
+        "contact_messages",
+        "donation_requests",
+        "notifications",
+        "profiles",
+        "users"
+    ]
+}

@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Bell, BellOff, Check, CheckCheck, Info, AlertCircle, Megaphone } from 'lucide-react';
+import { Loader2, Bell, BellOff, Check, CheckCheck, Info, AlertCircle, Megaphone, ArrowLeft } from 'lucide-react';
 import { useEffect } from 'react';
 
 const Notifications = () => {
@@ -47,6 +47,20 @@ const Notifications = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-3xl">
+        {/* Back Button */}
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 rounded-full px-4"
+          >
+            <ArrowLeft className={`h-4 w-4 transition-transform group-hover:${dir === 'rtl' ? 'translate-x-1' : '-translate-x-1'}`} />
+            <span className="font-medium">
+              {dir === 'rtl' ? 'العودة' : 'Back'}
+            </span>
+          </Button>
+        </div>
+
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -83,9 +97,8 @@ const Notifications = () => {
                 {notifications.map((notification) => (
                   <Card
                     key={notification.id}
-                    className={`glass-card transition-all cursor-pointer hover:shadow-md ${
-                      !notification.is_read ? 'border-primary bg-primary/5' : ''
-                    }`}
+                    className={`glass-card transition-all cursor-pointer hover:shadow-md ${!notification.is_read ? 'border-primary bg-primary/5' : ''
+                      }`}
                     onClick={() => !notification.is_read && markAsRead(notification.id)}
                   >
                     <CardContent className="p-4">
@@ -110,9 +123,9 @@ const Notifications = () => {
                           <p className="text-xs text-muted-foreground mt-2">
                             {new Date(notification.created_at).toLocaleDateString(
                               language === 'ar' ? 'ar-SA' : 'en-US',
-                              { 
-                                year: 'numeric', 
-                                month: 'short', 
+                              {
+                                year: 'numeric',
+                                month: 'short',
                                 day: 'numeric',
                                 hour: '2-digit',
                                 minute: '2-digit'

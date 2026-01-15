@@ -201,3 +201,6 @@ INSERT INTO public.cities (name_en, name_ar) VALUES
     ('Néma', 'النعمة'),
     ('Aioun El Atrouss', 'العيون'),
     ('Sélibaby', 'سيليبابي');
+
+
+    

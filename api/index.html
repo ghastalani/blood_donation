@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Email Testing Dashboard - VitalConnect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .config-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+
+        .config-box h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .config-item {
+            display: flex;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .config-label {
+            font-weight: bold;
+            width: 120px;
+            color: #555;
+        }
+
+        .config-value {
+            color: #333;
+            font-family: 'Courier New', monospace;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .test-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        .test-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .test-card h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .test-card p {
+            font-size: 14px;
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+
+        .test-card .icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4caf50;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .footer {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .success-badge {
+            display: inline-block;
+            background: #4caf50;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📧 Email Testing Dashboard</h1>
+        <p class="subtitle">
+            <span class="status-indicator"></span>
+            Email notifications configured and ready to test
+            <span class="success-badge">CONFIGURED</span>
+        </p>
+
+        <div class="config-box">
+            <h3>⚙️ Current SMTP Configuration</h3>
+            <div class="config-item">
+                <span class="config-label">Host:</span>
+                <span class="config-value">ssl://smtp.gmail.com</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">Port:</span>
+                <span class="config-value">465</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">Email:</span>
+                <span class="config-value">elghastalanibebanemedsaghir@gmail.com</span>
+            </div>
+            <div class="config-item">
+                <span class="config-value" style="color: #4caf50; font-weight: bold;">✓ Ready</span>
+            </div>
+        </div>
+
+        <h2 style="margin-bottom: 20px; color: #333;">Choose a Test:</h2>
+
+        <div class="test-grid">
+            <a href="test_live_app.php" class="test-card"
+                style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+                <div class="icon">🚀</div>
+                <h3>Live App Simulation</h3>
+                <p>Simulate the exact user flow from the app with step-by-step visualization.</p>
+            </a>
+
+            <a href="verify_email_source.php" class="test-card"
+                style="background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);">
+                <div class="icon">🔍</div>
+                <h3>Verify Email Source</h3>
+                <p>Confirm emails are fetched from the 'users' table correctly.</p>
+            </a>
+
+            <a href="verify_email_system.php" class="test-card"
+                style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);">
+                <div class="icon">✅</div>
+                <h3>System Verification</h3>
+                <p>Comprehensive check of all email system components and configuration.</p>
+            </a>
+
+            <a href="test_mail.php" class="test-card">
+                <div class="icon">📨</div>
+                <h3>Simple Email Test</h3>
+                <p>Send a basic test email to verify SMTP configuration is working correctly.</p>
+            </a>
+
+            <a href="test_request_flow.php" class="test-card">
+                <div class="icon">🩸</div>
+                <h3>Full Request Flow</h3>
+                <p>Test the complete blood request creation and email notification process end-to-end.</p>
+            </a>
+
+            <a href="test_live_request.php" class="test-card">
+                <div class="icon">🧪</div>
+                <h3>Live Request Test</h3>
+                <p>Interactive test: Select real users and send a request to verify email delivery.</p>
+            </a>
+        </div>
+
+        <div class="config-box" style="border-left-color: #ff9800;">
+            <h3>📋 What Happens When a Request is Sent?</h3>
+            <ol style="margin-left: 20px; line-height: 2;">
+                <li>Requester submits a blood request through the UI</li>
+                <li>System creates a record in the database</li>
+                <li>Notification is stored for the donor</li>
+                <li><strong>Email is immediately sent to the donor</strong></li>
+                <li>Donor receives email with requester details</li>
+                <li>Donor can login and respond to the request</li>
+            </ol>
+        </div>
+
+        <div class="footer">
+            <p><strong>VitalConnect</strong> - Blood Donation Platform</p>
+            <p style="margin-top: 10px;">
+                <a href="../" style="color: #667eea; text-decoration: none;">← Back to Application</a> |
+                <a href="EMAIL_SETUP.md" style="color: #667eea; text-decoration: none;">📖 View Documentation</a>
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>

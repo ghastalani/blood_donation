@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useCities } from '@/hooks/useCities';
 import { Loader2, Search, Send, Droplets, MapPin, Phone, Mail, Clock } from 'lucide-react';
 
@@ -61,22 +61,23 @@ const RequesterDashboard = () => {
     if (!profile) return;
 
     try {
-      const { data, error } = await supabase
-        .from('donation_requests')
-        .select(`
-          *,
-          donor:profiles!donation_requests_donor_id_fkey (
-            id, name, phone, email, city_id, blood_type
-          )
-        `)
-        .eq('requester_id', profile.id)
-        .order('created_at', { ascending: false });
+      const data = await api.requests.get(profile.id, 'requester');
+      const formattedData = data.map((r: any) => ({
+        ...r,
+        donor: {
+          id: r.donor_id,
+          name: r.other_name,
+          phone: r.other_phone,
+          email: r.other_email,
+          city_id: r.city_id || r.donor_city_id,
+          blood_type: r.other_blood_type
+        }
+      }));
+      setRequests(formattedData || []);
 
-      if (error) throw error;
-      setRequests(data || []);
-      
       // Track which donors already have pending requests
-      const pending = new Set(data?.filter(r => r.status === 'pending').map(r => r.donor_id) || []);
+      const pendingIds = formattedData?.filter((r: any) => r.status === 'pending').map((r: any) => String(r.donor_id)) || [];
+      const pending = new Set<string>(pendingIds);
       setSentRequests(pending);
     } catch (err) {
       console.error('Error fetching requests:', err);
@@ -86,23 +87,7 @@ const RequesterDashboard = () => {
   const searchDonors = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'donor')
-        .eq('is_blocked', false)
-        .eq('is_available', true);
-
-      if (cityFilter) {
-        query = query.eq('city_id', cityFilter);
-      }
-      if (bloodTypeFilter && bloodTypeFilter !== 'all') {
-        query = query.eq('blood_type', bloodTypeFilter as any);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
+      const data = await api.profiles.search(bloodTypeFilter === 'all' ? '' : bloodTypeFilter, cityFilter);
       setDonors(data || []);
     } catch (err) {
       console.error('Error searching donors:', err);
@@ -123,59 +108,43 @@ const RequesterDashboard = () => {
       navigate('/');
     } else if (profile) {
       fetchRequests();
-
-      // Subscribe to real-time updates
-      const channel = supabase
-        .channel('requester-requests')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'donation_requests',
-            filter: `requester_id=eq.${profile.id}`,
-          },
-          () => {
-            fetchRequests();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      // Manual refresh interval
+      const interval = setInterval(fetchRequests, 30000);
+      return () => clearInterval(interval);
     }
   }, [profile, authLoading]);
 
-  const sendRequest = async (donorId: string) => {
+  const sendRequest = async (donorId: string, message: string = '') => {
     if (!profile) return;
 
     setSendingTo(donorId);
     try {
-      // Create donation request
-      const { error: requestError } = await supabase.from('donation_requests').insert({
+      // Create donation request (backend handles notification and email)
+      const response = await api.requests.create({
         requester_id: profile.id,
         donor_id: donorId,
+        message: message || `Urgent blood request from ${profile.name}`,
         status: 'pending',
       });
 
-      if (requestError) throw requestError;
-
-      // Create notification for donor
-      await supabase.from('notifications').insert({
-        user_id: donorId,
-        title_en: 'New Blood Request',
-        title_ar: 'طلب دم جديد',
-        message_en: `${profile.name} is requesting blood donation. Please review and respond.`,
-        message_ar: `${profile.name} يطلب تبرعاً بالدم. يرجى المراجعة والرد.`,
-        type: 'request',
-      });
-
       setSentRequests((prev) => new Set(prev).add(donorId));
+
+      // Show success message with email status
+      const emailStatus = response.email_sent
+        ? (dir === 'rtl' ? ' وتم إرسال بريد إلكتروني للمتبرع' : ' Email sent to donor')
+        : (dir === 'rtl'
+          ? ` (تحذير: فشل إرسال البريد الإلكتروني: ${response.email_message || ''})`
+          : ` (Warning: Email failed to send: ${response.email_message || ''})`);
+
       toast({
         title: dir === 'rtl' ? 'نجاح' : 'Success',
-        description: t('requestSentSuccess'),
+        description: t('requestSentSuccess') + emailStatus,
+        variant: response.email_sent ? 'default' : 'destructive',
       });
+
+      // Log email status for debugging
+      console.log('Request created - Full Response:', JSON.stringify(response, null, 2));
+
       fetchRequests();
     } catch (err) {
       console.error('Error sending request:', err);
@@ -381,16 +350,16 @@ const RequesterDashboard = () => {
                                 request.status === 'accepted'
                                   ? 'default'
                                   : request.status === 'rejected'
-                                  ? 'destructive'
-                                  : 'secondary'
+                                    ? 'destructive'
+                                    : 'secondary'
                               }
                               className={request.status === 'accepted' ? 'bg-success' : ''}
                             >
                               {request.status === 'pending'
                                 ? t('pending')
                                 : request.status === 'accepted'
-                                ? t('accepted')
-                                : t('rejected')}
+                                  ? t('accepted')
+                                  : t('rejected')}
                             </Badge>
                           </div>
                         </CardContent>

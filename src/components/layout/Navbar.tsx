@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Heart, Menu, X, Bell, User, LogOut } from 'lucide-react';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '@/contexts/NotificationsContext';
 
 export const Navbar = () => {
   const { t, dir } = useLanguage();
@@ -69,9 +69,8 @@ export const Navbar = () => {
               <Link
                 key={link.href}
                 to={link.href}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  location.pathname === link.href ? 'text-primary' : 'text-muted-foreground'
-                }`}
+                className={`text-sm font-medium transition-colors hover:text-primary ${location.pathname === link.href ? 'text-primary' : 'text-muted-foreground'
+                  }`}
               >
                 {link.label}
               </Link>
@@ -81,7 +80,7 @@ export const Navbar = () => {
           {/* Actions */}
           <div className="hidden md:flex items-center gap-3">
             <LanguageToggle />
-            
+
             {user ? (
               <>
                 {/* Notifications */}
@@ -89,8 +88,8 @@ export const Navbar = () => {
                   <Button variant="ghost" size="icon">
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
-                      <Badge 
-                        variant="destructive" 
+                      <Badge
+                        variant="destructive"
                         className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
                       >
                         {unreadCount}

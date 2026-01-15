@@ -7,14 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Mail, User, MessageSquare, Loader2, MapPin, Phone, Clock } from 'lucide-react';
 import { z } from 'zod';
 
 const Contact = () => {
   const { t, dir } = useLanguage();
   const { toast } = useToast();
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -33,7 +33,9 @@ const Contact = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) newErrors.name = t('requiredField');
-    if (!formData.email.trim() || !z.string().email().safeParse(formData.email).success) {
+    if (!formData.email.trim()) {
+      newErrors.email = t('requiredField');
+    } else if (!z.string().email().safeParse(formData.email).success) {
       newErrors.email = t('invalidEmail');
     }
     if (!formData.message.trim()) newErrors.message = t('requiredField');
@@ -48,13 +50,11 @@ const Contact = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('contact_messages').insert({
+      await api.contact.send({
         name: formData.name.trim(),
         email: formData.email.trim(),
         message: formData.message.trim(),
       });
-
-      if (error) throw error;
 
       toast({
         title: dir === 'rtl' ? 'نجاح' : 'Success',
@@ -115,7 +115,7 @@ const Contact = () => {
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.name ? 'border-destructive' : ''}`}
+                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.name ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                       />
                     </div>
                     {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
@@ -131,7 +131,7 @@ const Contact = () => {
                         type="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.email ? 'border-destructive' : ''}`}
+                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.email ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                       />
                     </div>
                     {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
@@ -147,7 +147,7 @@ const Contact = () => {
                         rows={5}
                         value={formData.message}
                         onChange={handleChange}
-                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.message ? 'border-destructive' : ''}`}
+                        className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.message ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                       />
                     </div>
                     {errors.message && <p className="text-sm text-destructive">{errors.message}</p>}

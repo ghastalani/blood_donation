@@ -11,9 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useCities } from '@/hooks/useCities';
-import { Loader2, Search, Shield, ShieldOff, Send, Mail, Droplets, MapPin, MessageSquare, Eye } from 'lucide-react';
+import { Loader2, Search, Shield, ShieldOff, Send, Mail, Droplets, MapPin, MessageSquare, Eye, FileText } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -26,8 +28,8 @@ interface User {
   role: 'donor' | 'requester' | 'admin';
   blood_type: string | null;
   city_id: string | null;
-  is_blocked: boolean;
   is_available: boolean;
+  is_banned: boolean;
 }
 
 interface ContactMessage {
@@ -58,16 +60,12 @@ const AdminDashboard = () => {
   // Broadcast
   const [broadcastCity, setBroadcastCity] = useState<string>('');
   const [broadcastBloodType, setBroadcastBloodType] = useState<string>('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.admin.getUsers();
       setUsers(data || []);
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -76,12 +74,11 @@ const AdminDashboard = () => {
 
   const fetchMessages = async () => {
     try {
-      const { data, error } = await supabase
-        .from('contact_messages')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      // Assuming api.contact.getMessages exists or adding it
+      // For now using profiles.get (placeholder replacement)
+      // Let's actually add getMessages to contact API
+      const response = await fetch('/api/contact.php?action=get_messages');
+      const data = await response.json();
       setMessages(data || []);
     } catch (err) {
       console.error('Error fetching messages:', err);
@@ -98,28 +95,23 @@ const AdminDashboard = () => {
     }
   }, [profile, authLoading]);
 
-  const toggleBlock = async (userId: string, currentBlocked: boolean) => {
-    setProcessing(userId);
+  const toggleBan = async (profileId: string, currentBanned: boolean) => {
+    setProcessing(profileId);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_blocked: !currentBlocked })
-        .eq('id', userId);
-
-      if (error) throw error;
+      await api.admin.updateUser({ id: profileId, is_banned: !currentBanned });
 
       setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, is_blocked: !currentBlocked } : u))
+        prev.map((u) => (u.id === profileId ? { ...u, is_banned: !currentBanned } : u))
       );
 
       toast({
         title: dir === 'rtl' ? 'نجاح' : 'Success',
-        description: currentBlocked
-          ? (dir === 'rtl' ? 'تم إلغاء حظر المستخدم' : 'User unblocked')
-          : (dir === 'rtl' ? 'تم حظر المستخدم' : 'User blocked'),
+        description: currentBanned
+          ? (dir === 'rtl' ? 'تم إلغاء حظر المستخدم' : 'User unbanned')
+          : (dir === 'rtl' ? 'تم حظر المستخدم' : 'User banned'),
       });
     } catch (err) {
-      console.error('Error toggling block:', err);
+      console.error('Error toggling ban:', err);
       toast({
         variant: 'destructive',
         title: dir === 'rtl' ? 'خطأ' : 'Error',
@@ -132,12 +124,10 @@ const AdminDashboard = () => {
 
   const markMessageRead = async (messageId: string) => {
     try {
-      const { error } = await supabase
-        .from('contact_messages')
-        .update({ is_read: true })
-        .eq('id', messageId);
-
-      if (error) throw error;
+      await fetch('/api/contact.php?action=mark_read', {
+        method: 'POST',
+        body: JSON.stringify({ id: messageId })
+      });
 
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, is_read: true } : m))
@@ -148,56 +138,57 @@ const AdminDashboard = () => {
   };
 
   const sendBroadcast = async () => {
+    if (!broadcastMessage.trim()) {
+      toast({
+        variant: 'destructive',
+        title: dir === 'rtl' ? 'خطأ' : 'Error',
+        description: dir === 'rtl' ? 'يرجى إدخال رسالة البث' : 'Please enter a broadcast message',
+      });
+      return;
+    }
+
     setSendingBroadcast(true);
     try {
-      // Get donors matching filters
-      let query = supabase
-        .from('profiles')
-        .select('id')
-        .eq('role', 'donor')
-        .eq('is_blocked', false);
+      let targets: any[] = [];
 
-      if (broadcastCity) {
-        query = query.eq('city_id', broadcastCity);
-      }
-      if (broadcastBloodType && broadcastBloodType !== 'all') {
-        query = query.eq('blood_type', broadcastBloodType as any);
+      // If no filters are active, target ALL non-banned users
+      if (!broadcastCity && (!broadcastBloodType || broadcastBloodType === 'all')) {
+        targets = users.filter(u => !u.is_banned);
+      } else {
+        // Use filtered search
+        targets = await api.profiles.search(broadcastBloodType === 'all' ? '' : broadcastBloodType, broadcastCity);
       }
 
-      const { data: donors, error } = await query;
-
-      if (error) throw error;
-
-      if (!donors || donors.length === 0) {
+      if (!targets || targets.length === 0) {
         toast({
           variant: 'destructive',
           title: dir === 'rtl' ? 'خطأ' : 'Error',
-          description: dir === 'rtl' ? 'لا يوجد متبرعين مطابقين' : 'No matching donors found',
+          description: dir === 'rtl' ? 'لم يتم العثور على مستخدمين لمطابقة المعايير' : 'No users found matching the criteria',
         });
         return;
       }
 
-      // Create notifications for all matching donors
-      const notifications = donors.map((donor) => ({
-        user_id: donor.id,
-        title_en: 'Urgent Blood Request',
-        title_ar: 'طلب دم عاجل',
-        message_en: 'There is an urgent need for blood donation. Please check if you can help.',
-        message_ar: 'هناك حاجة عاجلة للتبرع بالدم. يرجى التحقق إذا كنت تستطيع المساعدة.',
-        type: 'broadcast',
-      }));
-
-      const { error: notifError } = await supabase.from('notifications').insert(notifications);
-
-      if (notifError) throw notifError;
+      // Send to all targets
+      await Promise.all(targets.map((target: any) =>
+        api.notifications.create({
+          user_id: target.id,
+          title_en: 'System Announcement',
+          title_ar: 'إعلان من النظام',
+          message_en: broadcastMessage,
+          message_ar: broadcastMessage,
+          type: 'broadcast',
+        })
+      ));
 
       toast({
-        title: dir === 'rtl' ? 'نجاح' : 'Success',
+        title: dir === 'rtl' ? 'تم إرسال البث' : 'Broadcast Sent',
         description: dir === 'rtl'
-          ? `تم إرسال البث إلى ${donors.length} متبرع`
-          : `Broadcast sent to ${donors.length} donors`,
+          ? `تم إرسال الرسالة بنجاح إلى ${targets.length} مستخدم.`
+          : `Message successfully sent to ${targets.length} users.`,
+        className: "bg-success text-white border-none",
       });
 
+      setBroadcastMessage('');
       setBroadcastCity('');
       setBroadcastBloodType('');
     } catch (err) {
@@ -213,7 +204,7 @@ const AdminDashboard = () => {
   };
 
   const getCityName = (cityId: string | null) => {
-    if (!cityId) return '-';
+    if (!cityId || !cities) return '-';
     const city = cities.find((c) => c.id === cityId);
     return city ? (language === 'ar' ? city.name_ar : city.name_en) : '-';
   };
@@ -319,36 +310,38 @@ const AdminDashboard = () => {
                               {user.role === 'donor'
                                 ? t('donor')
                                 : user.role === 'requester'
-                                ? t('requester')
-                                : 'Admin'}
+                                  ? t('requester')
+                                  : 'Admin'}
                             </Badge>
                           </TableCell>
                           <TableCell>{user.blood_type || '-'}</TableCell>
                           <TableCell>{getCityName(user.city_id)}</TableCell>
                           <TableCell>
-                            <Badge variant={user.is_blocked ? 'destructive' : 'default'}>
-                              {user.is_blocked ? t('blocked') : t('active')}
+                            <Badge variant={user.is_banned ? 'destructive' : 'default'}>
+                              {user.is_banned
+                                ? (dir === 'rtl' ? 'محظور' : 'Banned')
+                                : (dir === 'rtl' ? 'نشط' : 'Active')}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             {user.role !== 'admin' && (
                               <Button
                                 size="sm"
-                                variant={user.is_blocked ? 'default' : 'destructive'}
-                                onClick={() => toggleBlock(user.id, user.is_blocked)}
+                                variant={user.is_banned ? 'default' : 'destructive'}
+                                onClick={() => toggleBan(user.id, user.is_banned)}
                                 disabled={processing === user.id}
                               >
                                 {processing === user.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : user.is_blocked ? (
+                                ) : user.is_banned ? (
                                   <>
-                                    <Shield className="h-4 w-4 mr-1" />
-                                    {t('unblock')}
+                                    <Shield className="h-4 w-4 mr-1 ml-1" />
+                                    {dir === 'rtl' ? 'إلغاء الحظر' : 'Unban'}
                                   </>
                                 ) : (
                                   <>
-                                    <ShieldOff className="h-4 w-4 mr-1" />
-                                    {t('block')}
+                                    <ShieldOff className="h-4 w-4 mr-1 ml-1" />
+                                    {dir === 'rtl' ? 'حظر المستخدم' : 'Ban User'}
                                   </>
                                 )}
                               </Button>
@@ -438,42 +431,68 @@ const AdminDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Select value={broadcastCity} onValueChange={setBroadcastCity}>
-                    <SelectTrigger className="w-full sm:w-[200px]">
-                      <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <SelectValue placeholder={dir === 'rtl' ? 'جميع المدن' : 'All Cities'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cities.map((city) => (
-                        <SelectItem key={city.id} value={city.id}>
-                          {language === 'ar' ? city.name_ar : city.name_en}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2">
+                  <Label htmlFor="broadcast-message">
+                    {dir === 'rtl' ? 'رسالة البث' : 'Broadcast Message'}
+                  </Label>
+                  <Textarea
+                    id="broadcast-message"
+                    placeholder={dir === 'rtl' ? 'اكتب رسالتك هنا...' : 'Type your message here...'}
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    className="min-h-[120px] resize-none"
+                  />
+                </div>
 
-                  <Select value={broadcastBloodType} onValueChange={setBroadcastBloodType}>
-                    <SelectTrigger className="w-full sm:w-[200px]">
-                      <Droplets className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <SelectValue placeholder={t('allBloodTypes')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('allBloodTypes')}</SelectItem>
-                      {BLOOD_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>{type}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex flex-col space-y-4">
+                  <Label>{dir === 'rtl' ? 'تصفية المستهدفين (اختياري)' : 'Target Filters (Optional)'}</Label>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Select value={broadcastCity} onValueChange={setBroadcastCity}>
+                      <SelectTrigger className="w-full sm:w-[200px]">
+                        <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder={dir === 'rtl' ? 'جميع المدن' : 'All Cities'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{dir === 'rtl' ? 'جميع المدن' : 'All Cities'}</SelectItem>
+                        {cities.map((city) => (
+                          <SelectItem key={city.id} value={city.id}>
+                            {language === 'ar' ? city.name_ar : city.name_en}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                  <Button onClick={sendBroadcast} disabled={sendingBroadcast}>
-                    {sendingBroadcast ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Send className="h-4 w-4 mr-2" />
-                    )}
-                    {t('sendBroadcast')}
-                  </Button>
+                    <Select value={broadcastBloodType} onValueChange={setBroadcastBloodType}>
+                      <SelectTrigger className="w-full sm:w-[200px]">
+                        <Droplets className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder={t('allBloodTypes')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('allBloodTypes')}</SelectItem>
+                        {BLOOD_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Button
+                      onClick={sendBroadcast}
+                      disabled={sendingBroadcast || !broadcastMessage.trim()}
+                      className="bg-primary hover:bg-primary/90 shadow-md"
+                    >
+                      {sendingBroadcast ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-2" />
+                      )}
+                      {t('sendBroadcast')}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {dir === 'rtl'
+                      ? '* إذا لم يتم اختيار فلاتر، سيتم إرسال الرسالة إلى جميع المستخدمين النشطين.'
+                      : '* If no filters are selected, the message will be sent to ALL active users.'}
+                  </p>
                 </div>
               </CardContent>
             </Card>

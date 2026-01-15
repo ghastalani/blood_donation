@@ -21,7 +21,7 @@ const Login = () => {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -45,8 +45,12 @@ const Login = () => {
       const fieldErrors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
         const field = err.path[0] as string;
-        if (field === 'email') fieldErrors[field] = t('invalidEmail');
-        if (field === 'password') fieldErrors[field] = t('invalidPassword');
+        if (field === 'email') {
+          fieldErrors[field] = formData.email ? t('invalidEmail') : t('requiredField');
+        }
+        if (field === 'password') {
+          fieldErrors[field] = formData.password ? t('invalidPassword') : t('requiredField');
+        }
       });
       setErrors(fieldErrors);
       return;
@@ -55,7 +59,7 @@ const Login = () => {
     setLoading(true);
     try {
       const { error } = await signIn(formData.email, formData.password);
-      
+
       if (error) {
         toast({
           variant: 'destructive',
@@ -67,9 +71,26 @@ const Login = () => {
           title: dir === 'rtl' ? 'نجاح' : 'Success',
           description: t('loginSuccess'),
         });
-        navigate('/');
+
+        // Redirect based on role
+        const storedProfile = localStorage.getItem('profile');
+        if (storedProfile) {
+          const profile = JSON.parse(storedProfile);
+          if (profile.role === 'donor') {
+            navigate('/donor-dashboard');
+          } else if (profile.role === 'requester') {
+            navigate('/requester-dashboard');
+          } else if (profile.role === 'admin') {
+            navigate('/admin');
+          } else {
+            navigate('/');
+          }
+        } else {
+          navigate('/');
+        }
       }
     } catch (err) {
+      console.error('Login Catch Error:', err);
       toast({
         variant: 'destructive',
         title: dir === 'rtl' ? 'خطأ' : 'Error',
@@ -90,12 +111,12 @@ const Login = () => {
             </div>
             <CardTitle className="text-2xl">{t('signIn')}</CardTitle>
             <CardDescription>
-              {dir === 'rtl' 
+              {dir === 'rtl'
                 ? 'ادخل بياناتك للوصول إلى حسابك'
                 : 'Enter your credentials to access your account'}
             </CardDescription>
           </CardHeader>
-          
+
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -109,7 +130,7 @@ const Login = () => {
                     placeholder={dir === 'rtl' ? 'أدخل بريدك الإلكتروني' : 'Enter your email'}
                     value={formData.email}
                     onChange={handleChange}
-                    className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.email ? 'border-destructive' : ''}`}
+                    className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.email ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                   />
                 </div>
                 {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
@@ -126,7 +147,7 @@ const Login = () => {
                     placeholder={dir === 'rtl' ? 'أدخل كلمة المرور' : 'Enter your password'}
                     value={formData.password}
                     onChange={handleChange}
-                    className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.password ? 'border-destructive' : ''}`}
+                    className={`${dir === 'rtl' ? 'pr-10' : 'pl-10'} ${errors.password ? 'border-destructive ring-2 ring-destructive/20' : ''}`}
                   />
                 </div>
                 {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
@@ -138,7 +159,7 @@ const Login = () => {
                 {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 {t('signIn')}
               </Button>
-              
+
               <p className="text-sm text-muted-foreground text-center">
                 {t('dontHaveAccount')}{' '}
                 <Link to="/register" className="text-primary font-medium hover:underline">
