@@ -10,13 +10,13 @@ export const translations = {
     register: 'Register',
     logout: 'Logout',
     dashboard: 'Dashboard',
-    
+
     // Home page
     heroTitle: 'Save Lives, Donate Blood',
     heroSubtitle: 'Join our community of blood donors and help save lives in your city',
     registerButton: 'Register as Donor or Requester',
     loginButton: 'Login to Your Account',
-    
+
     // Features
     feature1Title: 'Quick Registration',
     feature1Desc: 'Register in minutes and start saving lives',
@@ -24,7 +24,7 @@ export const translations = {
     feature2Desc: 'Search for compatible blood donors in your area',
     feature3Title: 'Real-time Notifications',
     feature3Desc: 'Get instant updates on donation requests',
-    
+
     // Auth
     email: 'Email',
     password: 'Password',
@@ -44,7 +44,7 @@ export const translations = {
     dontHaveAccount: "Don't have an account?",
     signIn: 'Sign In',
     signUp: 'Sign Up',
-    
+
     // Dashboard
     welcomeBack: 'Welcome back',
     myRequests: 'My Requests',
@@ -64,12 +64,12 @@ export const translations = {
     available: 'Available',
     unavailable: 'On Cooldown',
     daysRemaining: 'days remaining',
-    
+
     // Notifications
     notifications: 'Notifications',
     noNotifications: 'No notifications',
     markAsRead: 'Mark as read',
-    
+
     // Contact
     contactTitle: 'Get in Touch',
     contactSubtitle: 'Have questions? We\'d love to hear from you',
@@ -78,7 +78,7 @@ export const translations = {
     message: 'Message',
     sendMessage: 'Send Message',
     messageSent: 'Message sent successfully!',
-    
+
     // About
     aboutTitle: 'About Blood Donation',
     aboutSubtitle: 'Understanding the importance of blood donation',
@@ -87,7 +87,7 @@ export const translations = {
     benefit2: 'Blood is always needed for emergencies and surgeries',
     benefit3: 'Regular donation helps maintain your health',
     benefit4: 'Join a community of life-savers',
-    
+
     // Admin
     adminDashboard: 'Admin Dashboard',
     allUsers: 'All Users',
@@ -101,7 +101,7 @@ export const translations = {
     filterByEmail: 'Filter by email...',
     sendBroadcast: 'Send Broadcast',
     unreadMessages: 'unread messages',
-    
+
     // Validation
     invalidEmail: 'Please enter a valid email',
     invalidPhone: 'Please enter a valid phone number',
@@ -111,18 +111,18 @@ export const translations = {
     phoneExists: 'This phone number is already registered',
     requiredField: 'This field is required',
     passwordMismatch: 'Passwords do not match',
-    
+
     // Success messages
     registrationSuccess: 'Registration successful! Welcome to our community.',
     loginSuccess: 'Login successful!',
     requestSentSuccess: 'Request sent successfully!',
     requestAccepted: 'Request accepted! Donor info revealed.',
     requestRejected: 'Request rejected.',
-    
+
     // Error messages
     loginError: 'Invalid email or password',
     genericError: 'Something went wrong. Please try again.',
-    
+
     // Footer
     allRightsReserved: 'All rights reserved',
     madeWith: 'Made with',
@@ -137,13 +137,13 @@ export const translations = {
     register: 'التسجيل',
     logout: 'تسجيل الخروج',
     dashboard: 'لوحة التحكم',
-    
+
     // Home page
     heroTitle: 'أنقذ حياة، تبرع بالدم',
     heroSubtitle: 'انضم إلى مجتمعنا من المتبرعين بالدم وساعد في إنقاذ الأرواح في مدينتك',
     registerButton: 'سجل كمتبرع أو طالب دم',
     loginButton: 'تسجيل الدخول إلى حسابك',
-    
+
     // Features
     feature1Title: 'تسجيل سريع',
     feature1Desc: 'سجل في دقائق وابدأ في إنقاذ الأرواح',
@@ -151,7 +151,7 @@ export const translations = {
     feature2Desc: 'ابحث عن المتبرعين المتوافقين في منطقتك',
     feature3Title: 'إشعارات فورية',
     feature3Desc: 'احصل على تحديثات فورية حول طلبات التبرع',
-    
+
     // Auth
     email: 'البريد الإلكتروني',
     password: 'كلمة المرور',
@@ -171,7 +171,7 @@ export const translations = {
     dontHaveAccount: 'ليس لديك حساب؟',
     signIn: 'تسجيل الدخول',
     signUp: 'إنشاء حساب',
-    
+
     // Dashboard
     welcomeBack: 'مرحباً بعودتك',
     myRequests: 'طلباتي',
@@ -191,12 +191,12 @@ export const translations = {
     available: 'متاح',
     unavailable: 'في فترة انتظار',
     daysRemaining: 'أيام متبقية',
-    
+
     // Notifications
     notifications: 'الإشعارات',
     noNotifications: 'لا توجد إشعارات',
     markAsRead: 'تحديد كمقروء',
-    
+
     // Contact
     contactTitle: 'تواصل معنا',
     contactSubtitle: 'لديك أسئلة؟ يسعدنا سماعك',
@@ -205,7 +205,7 @@ export const translations = {
     message: 'الرسالة',
     sendMessage: 'إرسال الرسالة',
     messageSent: 'تم إرسال الرسالة بنجاح!',
-    
+
     // About
     aboutTitle: 'حول التبرع بالدم',
     aboutSubtitle: 'فهم أهمية التبرع بالدم',
@@ -214,7 +214,7 @@ export const translations = {
     benefit2: 'الدم مطلوب دائماً للطوارئ والعمليات الجراحية',
     benefit3: 'التبرع المنتظم يساعد في الحفاظ على صحتك',
     benefit4: 'انضم إلى مجتمع من منقذي الأرواح',
-    
+
     // Admin
     adminDashboard: 'لوحة تحكم المسؤول',
     allUsers: 'جميع المستخدمين',
@@ -228,7 +228,7 @@ export const translations = {
     filterByEmail: 'تصفية حسب البريد الإلكتروني...',
     sendBroadcast: 'إرسال البث',
     unreadMessages: 'رسائل غير مقروءة',
-    
+
     // Validation
     invalidEmail: 'يرجى إدخال بريد إلكتروني صالح',
     invalidPhone: 'يرجى إدخال رقم هاتف صالح',
@@ -238,22 +238,24 @@ export const translations = {
     phoneExists: 'رقم الهاتف هذا مسجل بالفعل',
     requiredField: 'هذا الحقل مطلوب',
     passwordMismatch: 'كلمتا المرور غير متطابقتين',
-    
+
     // Success messages
     registrationSuccess: 'تم التسجيل بنجاح! مرحباً بك في مجتمعنا.',
     loginSuccess: 'تم تسجيل الدخول بنجاح!',
     requestSentSuccess: 'تم إرسال الطلب بنجاح!',
     requestAccepted: 'تم قبول الطلب! تم الكشف عن معلومات المتبرع.',
     requestRejected: 'تم رفض الطلب.',
-    
+
     // Error messages
     loginError: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
     genericError: 'حدث خطأ ما. يرجى المحاولة مرة أخرى.',
-    
+
     // Footer
     allRightsReserved: 'جميع الحقوق محفوظة',
     madeWith: 'صنع بـ',
     forHumanity: 'من أجل الإنسانية',
+
+    // Commun names
   },
 };
 
