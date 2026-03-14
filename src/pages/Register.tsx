@@ -202,6 +202,8 @@ const Register = () => {
               {role && (
                 <div className="space-y-4 animate-slide-up">
                   {/* Name */}
+
+
                   <div className="space-y-2">
                     <Label htmlFor="name">{t('name')}</Label>
                     <div className="relative">

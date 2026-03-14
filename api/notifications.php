@@ -48,4 +48,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$id]);
         sendResponse(["status" => "success"]);
     }
+
+    if ($action === 'create_notification') {
+        if ($_SESSION['role'] !== 'admin') {
+            sendResponse(["status" => "error", "message" => "Unauthorized"], 401);
+        }
+
+        $userId = $input['user_id'] ?? null;
+        $titleAr = $input['title_ar'] ?? '';
+        $titleEn = $input['title_en'] ?? '';
+        $messageAr = $input['message_ar'] ?? '';
+        $messageEn = $input['message_en'] ?? '';
+        $type = $input['type'] ?? 'info';
+        $relatedRequestId = $input['related_request_id'] ?? null;
+
+        if (!$userId) sendResponse(["status" => "error", "message" => "Missing User ID"], 400);
+
+        $stmt = $pdo->prepare("INSERT INTO notifications (id, user_id, title_ar, title_en, message_ar, message_en, type, related_request_id) VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$userId, $titleAr, $titleEn, $messageAr, $messageEn, $type, $relatedRequestId]);
+
+        sendResponse(["status" => "success"]);
+    }
 }

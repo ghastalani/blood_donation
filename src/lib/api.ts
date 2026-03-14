@@ -18,7 +18,7 @@ export class ApiError extends Error {
 /**
  * Robust fetch wrapper with automatic JSON parsing and error handling
  */
-async function fetchAPI(endpoint: string, options: RequestInit = {}) {
+async function fetchAPI(endpoint: string, options: RequestInit = {}, retries = 3, delay = 1000) {
   const url = `${API_URL}${endpoint}`;
   const defaultOptions: RequestInit = {
     ...options,
@@ -30,26 +30,42 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     credentials: 'include', // Important for sessions
   };
 
-  try {
-    const response = await fetch(url, defaultOptions);
-    const text = await response.text();
-    
-    let data;
+  for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      data = text ? JSON.parse(text) : {};
-    } catch (e) {
-      throw new ApiError('Invalid JSON response from server', response.status, text);
-    }
+      const response = await fetch(url, defaultOptions);
+      const text = await response.text();
 
-    if (!response.ok) {
-      throw new ApiError(data.message || `HTTP Error ${response.status}`, response.status, data);
-    }
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        // If we get an HTML error page (common for 500s or 404s), 
+        // try to extract the title or just use the status text
+        const titleMatch = text.match(/<title>(.*?)<\/title>/i);
+        const errorMsg = titleMatch ? titleMatch[1] : 'Invalid JSON response';
+        throw new ApiError(errorMsg, response.status, text);
+      }
 
-    return data;
-  } catch (error: any) {
-    if (error instanceof ApiError) throw error;
-    console.error(`API Fetch Error (${url}):`, error);
-    throw new ApiError(error.message || 'Network connection error', 0);
+      if (!response.ok) {
+        throw new ApiError(data.message || `HTTP Error ${response.status}`, response.status, data);
+      }
+
+      return data;
+    } catch (error: any) {
+      const isLastAttempt = attempt === retries - 1;
+      const isRetryable = error.status === 0 || error.status >= 500;
+
+      if (isLastAttempt || !isRetryable) {
+        if (error instanceof ApiError) throw error;
+        console.error(`API Fetch Error (${url}):`, error);
+        throw new ApiError(error.message || 'Network connection error', 0);
+      }
+
+      console.warn(`Attempt ${attempt + 1} failed for ${url}. Retrying in ${delay}ms...`, error);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      // Increase delay for next retry
+      delay *= 2;
+    }
   }
 }
 
@@ -109,6 +125,11 @@ export const api = {
       fetchAPI('/notifications.php?action=mark_read', {
         method: 'POST',
         body: JSON.stringify({ id }),
+      }),
+    create: (data: any) =>
+      fetchAPI('/notifications.php?action=create_notification', {
+        method: 'POST',
+        body: JSON.stringify(data),
       }),
   },
   contact: {
